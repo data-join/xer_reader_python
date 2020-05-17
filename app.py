@@ -20,6 +20,14 @@ def load_data(uploaded_file):
     df['table'].fillna(method='ffill', inplace=True)
     data=df.loc[df[0].isin(['%R','%F'])]
     return data
+st.sidebar.title("About")
+st.sidebar.info(
+        "This app is a simple example of "
+        "using Streamlit to create web app.\n"
+        "\nIt is maintained by [Mim]("
+        "https://datamonkeysite.com/about/).\n\n"
+        "https://github.com/djouallah/xer_reader_python"
+    )
 st.title('Read XER')
 uploaded_file = st.file_uploader("Choose an XER file", type="xer")
 if uploaded_file is not None:
@@ -39,14 +47,16 @@ if uploaded_file is not None:
     dic = dict(zip(options, values))
     proj_id_var= st.sidebar.selectbox('Select Project', options, format_func=lambda x: dic[x])
     ###### Shwing sme stats about the file
-    result1 =pd.read_sql("SELECT 'Data_Date' as Project, [last_recalc_date] as Value FROM PROJECT where proj_id="+proj_id_var,engine)
-    result2 =pd.read_sql("select 'Project Start' as Project ,min([project_start]) as Value \
+    result1 =pd.read_sql("SELECT 'Data Date' as Project, [last_recalc_date] as Date FROM PROJECT where proj_id="+proj_id_var,engine)
+    result2 =pd.read_sql("select 'Project Start' as Project ,min([project_start]) as Date \
     from(SELECT min([act_start_date]) as Project_Start FROM TASK where proj_id="+proj_id_var+ \
     " UNION ALL SELECT min([early_start_date]) as Project_Start FROM TASK where proj_id="+proj_id_var+")" ,engine)
-    result3 =pd.read_sql("select 'Project Finish' as Project ,max([project_Finish]) as Value \
+    result3 =pd.read_sql("select 'Project Finish' as Project ,max([project_Finish]) as Date \
     from(SELECT max([act_end_date]) as Project_Finish FROM TASK where proj_id="+proj_id_var+ \
     " UNION ALL SELECT max([late_end_date]) as Project_Finish FROM TASK where proj_id="+proj_id_var+")" ,engine)
-    st.sidebar.table (pd.concat([result1, result2,result3], axis=0))
+    pv=pd.concat([result1, result2,result3], axis=0)
+    pv.set_index('Project', inplace=True)
+    st.sidebar.table (pv)
     ###### Shwing sme stats about the file
     result =pd.read_sql("SELECT null as id,count(*) as Total_Task, \
     sum(case when [task_type] = 'TT_Task' then 1 else 0 end ) as Task_Dependant, \
@@ -73,5 +83,11 @@ if uploaded_file is not None:
         var_name="Task", 
         value_name="Value")
     pv=pv[['Task','Value']]
+    pv.set_index('Task', inplace=True)
     st.subheader("show some stats about the file")  
-    st.table (pv)
+    st.dataframe (pv)
+    ###### Shwing sme stats about the file
+    result =pd.read_sql("SELECT [task_code] as Activity_ID, [task_name] as Activity_Name FROM TASK where proj_id="+proj_id_var+" and cast([total_float_hr_cnt] as real) < 0 ",engine)
+    if not result.empty:
+        st.subheader("Task with negative float")  
+        st.dataframe (result)
